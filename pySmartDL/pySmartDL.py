@@ -21,7 +21,7 @@ import utils
 __all__ = ['SmartDL', 'utils']
 __version_mjaor__ = 1
 __version_minor__ = 2
-__version_micro__ = 5
+__version_micro__ = 6
 __version__ = "%d.%d.%d" % (__version_mjaor__, __version_minor__, __version_micro__)
 
 class HashFailedException(Exception):
@@ -465,17 +465,17 @@ class SmartDL:
             self.status = "downloading"
             del self.thread_shared_cmds['pause']
     
-    # def limit_speed(self, kbytes=-1):
+    def limit_speed(self, kbytes=-1):
         # '''
         # Limits the download transfer speed.
         
         # :param kbytes: Number of Kilobytes to download per second. Negative values will not limit the speed. Default is `-1`.
         # :type kbytes: int
         # '''
-        # if kbytes == 0:
-            # self.pause()
-        # if kbytes > 0 and self.status == "downloading":
-            # self.thread_shared_cmds['limit'] = 1.0*kbytes/self.threads_count
+        if kbytes == 0:
+            self.pause()
+        if kbytes > 0 and self.status == "downloading":
+            self.thread_shared_cmds['limit'] = 1024.0*kbytes/self.threads_count
         
     def get_dest(self):
         '''
@@ -768,8 +768,8 @@ def download(url, dest, startByte=0, endByte=None, headers=None, timeout=4, shar
                 logger.warning("Server did not send Content-Length.")
         
         filesize_dl = 0 # total downloaded size
-        # limitspeed_timestamp = 0
-        # limitspeed_filesize = 0
+        limitspeed_timestamp = 0
+        limitspeed_filesize = 0
         block_sz = 8192
         while True:
             if thread_shared_cmds:
@@ -779,15 +779,15 @@ def download(url, dest, startByte=0, endByte=None, headers=None, timeout=4, shar
                 if 'pause' in thread_shared_cmds:
                     time.sleep(0.2)
                     continue
-                # if 'limit' in thread_shared_cmds:
-                    # currect_time = int(time.time())
-                    # if limitspeed_timestamp == currect_time:
-                        # if limitspeed_filesize >= thread_shared_cmds['limit']:
-                            # time.sleep(0.05)
-                            # continue
-                    # else:
-                        # limitspeed_timestamp = currect_time
-                        # limitspeed_filesize = 0
+                if 'limit' in thread_shared_cmds:
+                    currect_time = int(time.time())
+                    if limitspeed_timestamp == currect_time:
+                        if limitspeed_filesize >= thread_shared_cmds['limit']:
+                            time.sleep(0.05)
+                            continue
+                    else:
+                        limitspeed_timestamp = currect_time
+                        limitspeed_filesize = 0
                 
             try:
                 buff = urlObj.read(block_sz)
@@ -801,7 +801,7 @@ def download(url, dest, startByte=0, endByte=None, headers=None, timeout=4, shar
                 break
 
             filesize_dl += len(buff)
-            # limitspeed_filesize += len(buff)
+            limitspeed_filesize += len(buff)
             if shared_var:
                 shared_var.value += len(buff)
             f.write(buff)
